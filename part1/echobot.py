@@ -1,19 +1,24 @@
 import json
 import requests
+import os
 import time
 import urllib
 
-import config
 
-
-TOKEN = config.token
+TOKEN = 0
 URL = "https://api.telegram.org/bot{}/".format(TOKEN)
 
 
+seen = []
+
 def get_url(url):
-    response = requests.get(url)
-    content = response.content.decode("utf8")
-    return content
+    try:
+        response = requests.get(url)
+        content = response.content.decode("utf8")
+        return content
+    except:
+        time.sleep(1)
+        return get_url(url)
 
 
 def get_json_from_url(url):
@@ -23,7 +28,7 @@ def get_json_from_url(url):
 
 
 def get_updates(offset=None):
-    url = URL + "getUpdates"
+    url = URL + "getUpdates?timeout=100"
     if offset:
         url += "?offset={}".format(offset)
     js = get_json_from_url(url)
@@ -49,6 +54,10 @@ def get_last_chat_id_and_text(updates):
     last_update = num_updates - 1
     text = updates["result"][last_update]["message"]["text"]
     chat_id = updates["result"][last_update]["message"]["chat"]["id"]
+    if text == 'zzz' and updates['result'][last_update]['update_id'] not in seen:
+        seen.append(updates['result'][last_update]['update_id'])
+        send_message('Putting to sleep!', chat_id)
+        os.system('systemctl suspend')
     return (text, chat_id)
 
 
@@ -63,10 +72,8 @@ def main():
     while True:
         updates = get_updates(last_update_id)
         if len(updates["result"]) > 0:
-            last_update_id = get_last_update_id(updates) + 1
-            echo_all(updates)
-        time.sleep(0.5)
-
+            _, _ = get_last_chat_id_and_text(updates)
+        time.sleep(1)
 
 if __name__ == '__main__':
     main()
